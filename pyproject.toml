@@ -3,6 +3,7 @@ name = "polarsfolio"
 version = "0.1.0"
 description = ""
 authors = ["mark.wang <wxgter@gmail.com>"]
+packages = [{ include = "polarsfolio" }]
 readme = "README.md"
 
 [tool.poetry.dependencies]
@@ -12,8 +13,6 @@ altair = "^5.4.1"
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.29.5"
-
-
 
 [tool.poetry.group.test.dependencies]
 empyrical = "^0.5.5"
