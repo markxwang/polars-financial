@@ -1,4 +1,21 @@
 import polars as pl
+from typing import Literal
+
+FREQ_TO_PERIODS = {
+    "daily": 252,
+    "weekly": 52,
+    "monthly": 12,
+}
+
+freq_type = Literal["daily", "weekly", "monthly"]
+
+
+def _get_sqrt_periods(freq: freq_type) -> float:
+    return FREQ_TO_PERIODS[freq] ** 0.5
+
+
+def _get_year(freq: freq_type):
+    return pl.len() / FREQ_TO_PERIODS[freq]
 
 
 @pl.api.register_expr_namespace("metrics")
@@ -9,67 +26,110 @@ class MetricsExpr:
     def _add_one_cum_prod(self):
         return self._expr.add(1).cum_prod()
 
+    def _add_one_prod(self):
+        return self._expr.add(1).product()
+
+    def _excess_return(self, another_return: pl.Expr):
+        return self._expr - another_return
+
+    def _mean_excess_return(self, another_return: pl.Expr):
+        return self._excess_return(another_return).mean()
+
     def simple_return(self):
         return self._expr.pct_change()
 
     def cum_return(self):
         return self._add_one_cum_prod() - 1
 
-    def ann_return(self, num_year: int | float):
-        return self._add_one_cum_prod().pow(1 / num_year) - 1
+    def cum_return_final(self):
+        return self._add_one_prod() - 1
 
-    def ann_volatility(self, num_periods: int | float):
-        return self._expr.std() * (num_periods**0.5)
+    def ann_return(self, freq: freq_type):
+        year = _get_year(freq)
+        return self._add_one_prod().pow(1 / year) - 1
+
+    def volatility(self):
+        return self._expr.std()
+
+    def ann_volatility(self, freq: freq_type = "daily"):
+        return self.volatility() * _get_sqrt_periods(freq)
 
     def sharpe_ratio(self, risk_free: float = 0.0):
-        return (self._expr - risk_free) / self._expr.std()
+        sr_expr = self._mean_excess_return(risk_free) / self.volatility()
+        return sr_expr
 
-    def sharpe_ratio_ann(
-        self,
-        num_periods: int | float,
-        risk_free: float = 0.0,
-    ):
-        return (self._expr - risk_free).mul(num_periods**0.5) / self._expr.std()
+    def ann_sharpe_ratio(self, risk_free: float = 0.0, freq: freq_type = "daily"):
+        return self.sharpe_ratio(risk_free=risk_free) * _get_sqrt_periods(freq)
 
     def sortino_ratio(self, required_return: float = 0.0):
-        excess_returns = self._expr - required_return
-
-        return excess_returns.mean() / self.downside_risk(
+        sr_expr = self._mean_excess_return(required_return) / self.downside_risk(
             required_return=required_return
+        )
+        return sr_expr
+
+    def ann_sortino_ratio(
+        self, required_return: float = 0.0, freq: freq_type = "daily"
+    ):
+        # TODO: check if this is correct
+        return self.sortino_ratio(required_return=required_return) * _get_sqrt_periods(
+            freq
         )
 
     def downside_risk(self, required_return: float = 0.0):
-        excess_returns = self._expr - required_return
-        downside_returns = excess_returns.clip(upper_bound=0)
-        return downside_returns.pow(2).mean().sqrt()
+        dr_expr = (
+            self._excess_return(required_return)
+            .clip(upper_bound=0)
+            .pow(2)
+            .mean()
+            .sqrt()
+        )
+        return dr_expr
+
+    def ann_downside_risk(
+        self, required_return: float = 0.0, freq: freq_type = "daily"
+    ):
+        adr_expr = self.downside_risk(
+            required_return=required_return
+        ) * _get_sqrt_periods(freq)
+
+        return adr_expr
 
     def information_ratio(self, benchmark: pl.Expr):
-        active_return = self._expr - benchmark
+        active_return = self._excess_return(benchmark)
         tracking_error = active_return.std()
-        return active_return.mean() / tracking_error
+
+        ir_expr = active_return.mean() / tracking_error
+        return ir_expr
 
     def max_drawdown(self):
-        cum_level = self._expr._add_one_cum_prod()
-        running_cum_max_level = cum_level.cum_max()
-        mdd = (cum_level - running_cum_max_level) / running_cum_max_level
+        cum_level = self._add_one_cum_prod()
+        cum_max_level = cum_level.cum_max()
+        mdd_expr = (cum_level / cum_max_level).min() - 1
 
-        return mdd.min()
+        return mdd_expr
 
-    def calmar_ratio(self, num_year: int | float):
-        return self._expr.ann_return(num_year=num_year) / self._expr.max_drawdown()
+    def calmar_ratio(self, freq: freq_type = "daily"):
+        return self.ann_return(freq=freq) / self.max_drawdown()
 
-    def capture_ratio(self, benchmark: pl.Expr, num_year: int | float):
-        return self._expr.ann_return(num_year) / benchmark.ann_return(num_year)
+    def up_capture_ratio(self, benchmark: pl.Expr, freq: freq_type = "daily"):
+        up_returns = self._expr.filter(benchmark >= 0)
+        up_benchmark = benchmark.filter(benchmark >= 0)
 
-    def up_capture_ratio(self, benchmark: pl.Expr, num_year: int | float):
-        return_up = self._expr.filter(benchmark >= 0).ann_return(num_year)
-        benchmark_up = benchmark.filter(benchmark >= 0).ann_return(num_year)
-        return return_up / benchmark_up
+        return_up = MetricsExpr(up_returns).ann_return(freq=freq)
+        benchmark_up = MetricsExpr(up_benchmark).ann_return(freq=freq)
 
-    def down_capture_ratio(self, benchmark: pl.Expr, num_year: int | float):
-        return_down = self._expr.filter(benchmark <= 0).ann_return(num_year)
-        benchmark_down = benchmark.filter(benchmark <= 0).ann_return(num_year)
-        return return_down / benchmark_down
+        ucr_expr = return_up / benchmark_up
+        return ucr_expr
+
+    def down_capture_ratio(self, benchmark: pl.Expr, freq: freq_type = "daily"):
+        down_returns = self._expr.filter(benchmark < 0)
+        down_benchmark = benchmark.filter(benchmark < 0)
+
+        return_down = MetricsExpr(down_returns).ann_return(freq=freq)
+        benchmark_down = MetricsExpr(down_benchmark).ann_return(freq=freq)
+
+        dcr_expr = return_down / benchmark_down
+        return dcr_expr
 
     def alpha_beta(self, benchmark: pl.Expr, risk_free: float = 0.0):
         beta = pl.cov(self._expr, benchmark) / benchmark.var()
