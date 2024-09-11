@@ -24,10 +24,7 @@ class MetricsExpr:
         self._expr = expr.fill_nan(None)
 
     def _add_one_cum_prod(self):
-        return self._expr.add(1).cum_prod()
-
-    # def _add_one_prod(self):
-    #     return self._expr.add(1).product()
+        return self._expr.fill_null(0).add(1).cum_prod()
 
     def _excess_return(self, another_return: pl.Expr):
         return self._expr - another_return
@@ -42,7 +39,7 @@ class MetricsExpr:
         return self._add_one_cum_prod() - 1
 
     def cum_return_final(self):
-        return self._add_one_cum_prod().last() - 1
+        return self.cum_return().last()
 
     def ann_return(self, freq: freq_type):
         year = _get_year(freq)
