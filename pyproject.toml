@@ -16,6 +16,8 @@ ipykernel = "^6.29.5"
 
 [tool.poetry.group.test.dependencies]
 empyrical = "^0.5.5"
+pytest = "^8.3.3"
+pytest-cov = "^5.0.0"
 
 [build-system]
 requires = ["poetry-core"]
