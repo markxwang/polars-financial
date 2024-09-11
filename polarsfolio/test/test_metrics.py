@@ -15,11 +15,11 @@ returns = {
 
 cum_return_data_prep = [
     (returns["empty"], []),
-    (returns["none"], [None, None]),
+    (returns["none"], [0, 0]),
     (
         returns["mixed-nan"],
         [
-            None,
+            0,
             0.01,
             0.111,
             0.06656,
@@ -33,7 +33,7 @@ cum_return_data_prep = [
     (
         returns["mixed-none"],
         [
-            None,
+            0,
             0.01,
             0.111,
             0.06656,
@@ -74,8 +74,8 @@ def test_cum_return(input, expected):
 
 
 cum_return_final_data_prep = [
-    # (returns["empty"], []),
-    (returns["none"], None),
+    # (returns["empty"], None),
+    (returns["none"], 0),
     (returns["mixed-nan"], 0.0389311),
     (returns["mixed-none"], 0.038931),
     (returns["negative"], -0.3659073),
