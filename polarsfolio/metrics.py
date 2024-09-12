@@ -43,7 +43,7 @@ class MetricsExpr:
 
     def ann_return(self, freq: freq_type):
         year = _get_year(freq)
-        return self.self._add_one_cum_prod().last().pow(1 / year) - 1
+        return self._add_one_cum_prod().last().pow(1 / year) - 1
 
     def volatility(self):
         return self._expr.std()
