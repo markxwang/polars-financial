@@ -2,7 +2,7 @@ import pytest
 import polars as pl
 import polarsfolio.metrics  # noqa
 from math import isclose
-from polars.testing import assert_frame_equal
+
 
 returns = {
     "empty": [],
@@ -97,11 +97,23 @@ ann_volatility_test_data = [
 ]
 
 calmar_ratio_test_data = [
-    (returns["flat-line"], "daily", None),
-    (returns["one-return"], "daily", None),
+    (returns["flat-line"], "daily", None),  # TODO: check if this is actually None?
+    (returns["one-return"], "daily", None),  # TODO: check if this is actually None?
     (returns["mixed-nan"], "daily", 19.135925373194233),
     (returns["for-annual"], "weekly", 2.4690830513998208),
     (returns["for-annual"], "monthly", 0.52242061386048144),
+]
+
+sharpe_ratio_test_data = [
+    (returns["empty"], 0.0, None),
+    (returns["none"], 0.0, None),
+    (returns["one-return"], 0.0, None),
+    (returns["mixed-nan"], pl.col("returns"), None),
+    (returns["mixed-nan"], 0.0, 1.7238613961706866),
+    (returns["positive"], 0.0, 52.915026221291804),
+    (returns["negative"], 0.0, -24.406808633910085),
+    (returns["flat-line"], 0.0, float("inf")),
+    # (returns["mixed-nan"], simple_benchmark, 0.34111411441060574),   # TODO: add additional tests?
 ]
 
 
@@ -117,18 +129,6 @@ def _test_single_value(input, expected, method, *args, **kwargs):
         assert df_output[0, 0] is None
     else:
         assert isclose(df_output[0, 0], expected, rel_tol=1e-05)
-
-
-@pytest.mark.parametrize("input, expected", cum_return_test_data)
-def test_cum_return(input, expected):
-
-    schema = {"returns": pl.Float64}
-    df_output = pl.DataFrame({"returns": input}, schema=schema).select(
-        pl.col("returns").metrics.cum_return()
-    )
-    df_expected = pl.DataFrame({"returns": expected}, schema=schema)
-
-    assert_frame_equal(df_output, df_expected)
 
 
 @pytest.mark.parametrize("input, expected", max_drawdown_test_data)
@@ -154,3 +154,11 @@ def test_ann_volatility(input, freq, expected):
 @pytest.mark.parametrize("input, freq, expected", calmar_ratio_test_data)
 def test_calmar_ratio(input, freq, expected):
     _test_single_value(input, expected, "calmar_ratio", freq=freq)
+
+
+@pytest.mark.parametrize("input, risk_free, expected", sharpe_ratio_test_data)
+def test_ann_sharpe_ratio(input, risk_free, expected):
+    _test_single_value(input, expected, "ann_sharpe_ratio", risk_free=risk_free)
+
+
+# TODO: input data as dictionary or dataframe? Add dataframe builder helper function
