@@ -96,6 +96,14 @@ ann_volatility_test_data = [
     (returns["for-annual"], "monthly", 0.18663690238892558),
 ]
 
+calmar_ratio_test_data = [
+    (returns["flat-line"], "daily", None),
+    (returns["one-return"], "daily", None),
+    (returns["mixed-nan"], "daily", 19.135925373194233),
+    (returns["for-annual"], "weekly", 2.4690830513998208),
+    (returns["for-annual"], "monthly", 0.52242061386048144),
+]
+
 
 def _test_single_value(input, expected, method, *args, **kwargs):
     schema = {"returns": pl.Float64}
@@ -141,3 +149,8 @@ def test_ann_return(input, freq, expected):
 @pytest.mark.parametrize("input, freq, expected", ann_volatility_test_data)
 def test_ann_volatility(input, freq, expected):
     _test_single_value(input, expected, "ann_volatility", freq=freq)
+
+
+@pytest.mark.parametrize("input, freq, expected", calmar_ratio_test_data)
+def test_calmar_ratio(input, freq, expected):
+    _test_single_value(input, expected, "calmar_ratio", freq=freq)
