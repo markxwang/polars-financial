@@ -106,7 +106,10 @@ class MetricsExpr:
         return mdd_expr
 
     def calmar_ratio(self, freq: freq_type = "daily"):
-        return self.ann_return(freq=freq) / self.max_drawdown()
+        cr_expr = pl.when(self.max_drawdown().ne(0)).then(
+            self.ann_return(freq=freq) / self.max_drawdown().abs()
+        )
+        return cr_expr
 
     def up_capture_ratio(self, benchmark: pl.Expr, freq: freq_type = "daily"):
         up_returns = self._expr.filter(benchmark >= 0)
