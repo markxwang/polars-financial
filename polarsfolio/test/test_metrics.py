@@ -14,6 +14,7 @@ returns = {
     "positive": [0.01, 0.02, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01],
     "negative": [0.0, -0.06, -0.07, -0.01, -0.09, -0.02, -0.06, -0.08, -0.05],
     "for-annual": [0.0, 0.01, 0.1, -0.04, 0.02, 0.03, 0.02, 0.01, -0.1],
+    "flat-line": [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01],
 }
 
 
@@ -88,6 +89,13 @@ ann_return_test_data = [
     (returns["for-annual"], "monthly", 0.052242061386048144),
 ]
 
+ann_volatility_test_data = [
+    (returns["flat-line"], "daily", 0.0),
+    (returns["mixed-nan"], "daily", 0.9136465399704637),
+    (returns["for-annual"], "weekly", 0.38851569394870583),
+    (returns["for-annual"], "monthly", 0.18663690238892558),
+]
+
 
 def _test_single_value(input, expected, method, *args, **kwargs):
     schema = {"returns": pl.Float64}
@@ -128,3 +136,8 @@ def test_cum_return_final(input, expected):
 @pytest.mark.parametrize("input, freq, expected", ann_return_test_data)
 def test_ann_return(input, freq, expected):
     _test_single_value(input, expected, "ann_return", freq=freq)
+
+
+@pytest.mark.parametrize("input, freq, expected", ann_volatility_test_data)
+def test_ann_volatility(input, freq, expected):
+    _test_single_value(input, expected, "ann_volatility", freq=freq)
