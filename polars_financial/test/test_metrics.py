@@ -2,7 +2,7 @@ import pytest
 import polars as pl
 import polars_financial.metrics  # noqa
 from math import isclose
-
+from polars_financial.days import DAILY, MONTHLY, WEEKLY
 
 returns = {
     "empty": [],
@@ -84,24 +84,24 @@ max_drawdown_test_data = [
 ]
 
 ann_return_test_data = [
-    (returns["mixed-nan"], "daily", 1.9135925373194231),
-    (returns["for-annual"], "weekly", 0.24690830513998208),
-    (returns["for-annual"], "monthly", 0.052242061386048144),
+    (returns["mixed-nan"], DAILY, 1.9135925373194231),
+    (returns["for-annual"], WEEKLY, 0.24690830513998208),
+    (returns["for-annual"], MONTHLY, 0.052242061386048144),
 ]
 
 ann_volatility_test_data = [
-    (returns["flat-line"], "daily", 0.0),
-    (returns["mixed-nan"], "daily", 0.9136465399704637),
-    (returns["for-annual"], "weekly", 0.38851569394870583),
-    (returns["for-annual"], "monthly", 0.18663690238892558),
+    (returns["flat-line"], DAILY, 0.0),
+    (returns["mixed-nan"], DAILY, 0.9136465399704637),
+    (returns["for-annual"], WEEKLY, 0.38851569394870583),
+    (returns["for-annual"], MONTHLY, 0.18663690238892558),
 ]
 
 calmar_ratio_test_data = [
-    (returns["flat-line"], "daily", None),  # TODO: check if this is actually None?
-    (returns["one-return"], "daily", None),  # TODO: check if this is actually None?
-    (returns["mixed-nan"], "daily", 19.135925373194233),
-    (returns["for-annual"], "weekly", 2.4690830513998208),
-    (returns["for-annual"], "monthly", 0.52242061386048144),
+    (returns["flat-line"], DAILY, None),  # TODO: check if this is actually None?
+    (returns["one-return"], DAILY, None),  # TODO: check if this is actually None?
+    (returns["mixed-nan"], DAILY, 19.135925373194233),
+    (returns["for-annual"], WEEKLY, 2.4690830513998208),
+    (returns["for-annual"], MONTHLY, 0.52242061386048144),
 ]
 
 sharpe_ratio_test_data = [
@@ -141,19 +141,19 @@ def test_cum_return_final(input, expected):
     _test_single_value(input, expected, "cum_return_final")
 
 
-@pytest.mark.parametrize("input, freq, expected", ann_return_test_data)
-def test_ann_return(input, freq, expected):
-    _test_single_value(input, expected, "ann_return", freq=freq)
+@pytest.mark.parametrize("input, annual_obs, expected", ann_return_test_data)
+def test_ann_return(input, annual_obs, expected):
+    _test_single_value(input, expected, "ann_return", annual_obs=annual_obs)
 
 
-@pytest.mark.parametrize("input, freq, expected", ann_volatility_test_data)
-def test_ann_volatility(input, freq, expected):
-    _test_single_value(input, expected, "ann_volatility", freq=freq)
+@pytest.mark.parametrize("input, annual_obs, expected", ann_volatility_test_data)
+def test_ann_volatility(input, annual_obs, expected):
+    _test_single_value(input, expected, "ann_volatility", annual_obs=annual_obs)
 
 
-@pytest.mark.parametrize("input, freq, expected", calmar_ratio_test_data)
-def test_calmar_ratio(input, freq, expected):
-    _test_single_value(input, expected, "calmar_ratio", freq=freq)
+@pytest.mark.parametrize("input, annual_obs, expected", calmar_ratio_test_data)
+def test_calmar_ratio(input, annual_obs, expected):
+    _test_single_value(input, expected, "calmar_ratio", annual_obs=annual_obs)
 
 
 @pytest.mark.parametrize("input, risk_free, expected", sharpe_ratio_test_data)
