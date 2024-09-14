@@ -1,6 +1,6 @@
 import pytest
 import polars as pl
-import polarsfolio.metrics  # noqa
+import polars_financial.metrics  # noqa
 from math import isclose
 
 

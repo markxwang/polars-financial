@@ -1,9 +1,9 @@
 [tool.poetry]
-name = "polarsfolio"
+name = "polars-financial"
 version = "0.1.0"
 description = ""
 authors = ["mark.wang <wxgter@gmail.com>"]
-packages = [{ include = "polarsfolio" }]
+packages = [{ include = "polars_financial" }]
 readme = "README.md"
 
 [tool.poetry.dependencies]

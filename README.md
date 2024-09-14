@@ -1,1 +1,1 @@
-# polarsfolio
+# polars-financial
