@@ -13,6 +13,7 @@ returns = {
     "mixed-none": [None, 0.01, 0.1, -0.04, 0.02, 0.03, 0.02, 0.01, -0.1],
     "positive": [0.01, 0.02, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01],
     "negative": [0.0, -0.06, -0.07, -0.01, -0.09, -0.02, -0.06, -0.08, -0.05],
+    "all—negative": [-0.02, -0.06, -0.07, -0.01, -0.09, -0.02, -0.06, -0.08, -0.05],
     "for-annual": [0.0, 0.01, 0.1, -0.04, 0.02, 0.03, 0.02, 0.01, -0.1],
     "flat-line": [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01],
 }
@@ -116,17 +117,33 @@ sharpe_ratio_test_data = [
     (["mixed-nan", "simple-benchmark"], "simple-benchmark", 0.3411141144),
 ]
 
+downside_risk_test_data = [
+    ("empty", 0.0, DAILY, None),
+    ("one-return", 0.0, DAILY, 0.0),
+    ("mixed-nan", "mixed-nan", DAILY, 0.0),
+    ("mixed-nan", 0.0, DAILY, 0.6044832503882),
+    ("mixed-nan", 0.1, DAILY, 1.7161730681956),
+    ("for-annual", 0.0, WEEKLY, 0.25888650451),
+    ("for-annual", 0.1, WEEKLY, 0.773304597167),
+    ("for-annual", 0.0, MONTHLY, 0.12436505404),
+    ("for-annual", 0.1, MONTHLY, 0.37148351242),
+]
+
 
 def _test_single_value(data, input, expected, method, *args, **kwargs):
 
     if isinstance(input, list):
         schema = {inp: pl.Float64 for inp in input}
         data_dict = {inp: data[inp] for inp in input}
+
+        input_first = input[0]
     else:
         schema = {input: pl.Float64}
         data_dict = {input: data[input]}
+        input_first = input
 
-    metric = getattr(pl.col(input).metrics, method)
+    metric = getattr(pl.col(input_first).metrics, method)
+
     df_output = pl.DataFrame(data_dict, schema=schema).select(metric(*args, **kwargs))
 
     if expected is None:
@@ -169,4 +186,38 @@ def test_ann_sharpe_ratio(input, risk_free, expected):
     )
 
 
-# TODO: input data as dictionary or dataframe? Add dataframe builder helper function
+@pytest.mark.parametrize(
+    "input, required_return, annual_obs, expected", downside_risk_test_data
+)
+def test_ann_downside_risk(input, required_return, annual_obs, expected):
+    _test_single_value(
+        returns,
+        input,
+        expected,
+        "ann_downside_risk",
+        required_return=required_return,
+        annual_obs=annual_obs,
+    )
+
+
+up_capture_ratio_test_data = [
+    ("empty", pl.col("empty"), DAILY, None),
+    ("one-return", pl.col("one-return"), DAILY, 1.0),
+    ("mixed-nan", pl.col("mixed-nan"), DAILY, 1.0),
+    (["positive", "mixed-nan"], pl.col("mixed-nan"), DAILY, 0.0076167762),
+    (["all—negative", "mixed-nan"], pl.col("mixed-nan"), DAILY, -0.0004336328),
+]
+
+
+@pytest.mark.parametrize(
+    "input, benchmark, annual_obs, expected", up_capture_ratio_test_data
+)
+def test_up_capture_ratio(input, benchmark, annual_obs, expected):
+    _test_single_value(
+        returns,
+        input,
+        expected,
+        "up_capture_ratio",
+        benchmark=benchmark,
+        annual_obs=annual_obs,
+    )
