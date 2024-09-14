@@ -2,12 +2,12 @@ import polars as pl
 from polars_financial.days import DAILY
 
 
-def _get_inv_year(annual_obs: int | float | None = None):
+def _get_inv_year(expr: pl.Expr, annual_obs: int | float | None = None):
     """Calculate the number of years based on the annual number of observations."""
     if annual_obs is None:
         return 1
     else:
-        return annual_obs / pl.len()
+        return annual_obs / expr.len()
 
 
 @pl.api.register_expr_namespace("metrics")
@@ -31,7 +31,7 @@ class MetricsExpr:
         return self.cum_return().last()
 
     def ann_return(self, annual_obs: int | float = DAILY):
-        inv_year = _get_inv_year(annual_obs)
+        inv_year = _get_inv_year(self._expr, annual_obs)
         return self._add_one_cum_prod().last().pow(inv_year) - 1
 
     def volatility(self):
@@ -109,11 +109,11 @@ class MetricsExpr:
 
     def up_capture_ratio(
         self,
-        benchmark: pl.Expr,
+        benchmark: pl.Expr,  # TODO support string/selectors/expr
         annual_obs: int | float = DAILY,
     ):
-        up_returns = self._expr.filter(benchmark >= 0)
-        up_benchmark = benchmark.filter(benchmark >= 0)
+        up_returns = self._expr.filter(benchmark.fill_nan(None) > 0)
+        up_benchmark = benchmark.filter(benchmark.fill_nan(None) > 0)
 
         return_up = MetricsExpr(up_returns).ann_return(annual_obs=annual_obs)
         benchmark_up = MetricsExpr(up_benchmark).ann_return(annual_obs=annual_obs)
@@ -122,8 +122,8 @@ class MetricsExpr:
         return ucr_expr
 
     def down_capture_ratio(self, benchmark: pl.Expr, annual_obs: int | float = DAILY):
-        down_returns = self._expr.filter(benchmark < 0)
-        down_benchmark = benchmark.filter(benchmark < 0)
+        down_returns = self._expr.filter(benchmark.fill_nan(None) < 0)
+        down_benchmark = benchmark.filter(benchmark.fill_nan(None) < 0)
 
         return_down = MetricsExpr(down_returns).ann_return(annual_obs=annual_obs)
         benchmark_down = MetricsExpr(down_benchmark).ann_return(annual_obs=annual_obs)
