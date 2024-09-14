@@ -26,10 +26,10 @@ class MetricsExpr:
     def _add_one_cum_prod(self):
         return self._expr.fill_null(0).add(1).cum_prod()
 
-    def _excess_return(self, another_return: pl.Expr):
+    def _excess_return(self, another_return: pl.Expr | float | int):
         return self._expr - another_return
 
-    def _mean_excess_return(self, another_return: pl.Expr):
+    def _mean_excess_return(self, another_return: pl.Expr | float | int):
         return self._excess_return(another_return).mean()
 
     def simple_return(self):
@@ -43,7 +43,7 @@ class MetricsExpr:
 
     def ann_return(self, freq: freq_type):
         year = _get_year(freq)
-        return self.self._add_one_cum_prod().last().pow(1 / year) - 1
+        return self._add_one_cum_prod().last().pow(1 / year) - 1
 
     def volatility(self):
         return self._expr.std()
@@ -51,28 +51,34 @@ class MetricsExpr:
     def ann_volatility(self, freq: freq_type = "daily"):
         return self.volatility() * _get_sqrt_periods(freq)
 
-    def sharpe_ratio(self, risk_free: float = 0.0):
-        sr_expr = self._mean_excess_return(risk_free) / self.volatility()
+    def sharpe_ratio(self, risk_free: pl.Expr | float | int = 0.0):
+        excess_return = self._excess_return(risk_free)
+        sr_expr = (
+            excess_return.mean() / MetricsExpr(excess_return).volatility()
+        ).fill_nan(None)
+
         return sr_expr
 
-    def ann_sharpe_ratio(self, risk_free: float = 0.0, freq: freq_type = "daily"):
+    def ann_sharpe_ratio(
+        self, risk_free: pl.Expr | float | int = 0.0, freq: freq_type = "daily"
+    ):
         return self.sharpe_ratio(risk_free=risk_free) * _get_sqrt_periods(freq)
 
-    def sortino_ratio(self, required_return: float = 0.0):
+    def sortino_ratio(self, required_return: pl.Expr | float | int = 0.0):
         sr_expr = self._mean_excess_return(required_return) / self.downside_risk(
             required_return=required_return
         )
         return sr_expr
 
     def ann_sortino_ratio(
-        self, required_return: float = 0.0, freq: freq_type = "daily"
+        self, required_return: pl.Expr | float | int = 0.0, freq: freq_type = "daily"
     ):
         # TODO: check if this is correct
         return self.sortino_ratio(required_return=required_return) * _get_sqrt_periods(
             freq
         )
 
-    def downside_risk(self, required_return: float = 0.0):
+    def downside_risk(self, required_return: pl.Expr | float | int = 0.0):
         dr_expr = (
             self._excess_return(required_return)
             .clip(upper_bound=0)
@@ -83,7 +89,7 @@ class MetricsExpr:
         return dr_expr
 
     def ann_downside_risk(
-        self, required_return: float = 0.0, freq: freq_type = "daily"
+        self, required_return: pl.Expr | float | int = 0.0, freq: freq_type = "daily"
     ):
         adr_expr = self.downside_risk(
             required_return=required_return
@@ -106,7 +112,10 @@ class MetricsExpr:
         return mdd_expr
 
     def calmar_ratio(self, freq: freq_type = "daily"):
-        return self.ann_return(freq=freq) / self.max_drawdown()
+        cr_expr = pl.when(self.max_drawdown().ne(0)).then(
+            self.ann_return(freq=freq) / self.max_drawdown().abs()
+        )
+        return cr_expr
 
     def up_capture_ratio(self, benchmark: pl.Expr, freq: freq_type = "daily"):
         up_returns = self._expr.filter(benchmark >= 0)
@@ -128,7 +137,7 @@ class MetricsExpr:
         dcr_expr = return_down / benchmark_down
         return dcr_expr
 
-    def alpha_beta(self, benchmark: pl.Expr, risk_free: float = 0.0):
+    def alpha_beta(self, benchmark: pl.Expr, risk_free: pl.Expr | float | int = 0.0):
         beta = pl.cov(self._expr, benchmark) / benchmark.var()
         alpha = self._expr - beta * benchmark
         return beta.name.suffix("_beta"), alpha.name.suffix("_alpha")
