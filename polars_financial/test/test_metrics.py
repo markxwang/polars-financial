@@ -1,7 +1,9 @@
-import pytest
-import polars as pl
-import polars_financial.metrics  # noqa
 from math import isclose
+
+import polars as pl
+import pytest
+
+import polars_financial.metrics  # noqa
 from polars_financial.days import DAILY, MONTHLY, WEEKLY
 
 returns = {
@@ -131,9 +133,8 @@ downside_risk_test_data = [
 
 
 def _test_single_value(data, input, expected, method, *args, **kwargs):
-
     if isinstance(input, list):
-        schema = {inp: pl.Float64 for inp in input}
+        schema = dict.fromkeys(input, pl.Float64)
         data_dict = {inp: data[inp] for inp in input}
 
         input_first = input[0]
