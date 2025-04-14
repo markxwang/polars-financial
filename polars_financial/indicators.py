@@ -24,7 +24,6 @@ def ema(expr: IntoExpr, length: int = 20) -> pl.Expr:
 def bollinger_bands(
     expr: IntoExpr, length: int = 20, std_dev: float = 2.0
 ) -> tuple[pl.Expr, pl.Expr, pl.Expr]:
-
     middle = sma(expr, length)
     deviation = sm_stdev(expr, length) * std_dev
     upper = middle + deviation
@@ -43,7 +42,6 @@ def macd(
     slow_length: int = 26,
     signal_length: int = 9,
 ) -> tuple[pl.Expr, pl.Expr, pl.Expr, pl.Expr]:
-
     fast_ema = ema(expr, fast_length)
     slow_ema = ema(expr, slow_length)
 
@@ -59,7 +57,6 @@ def macd(
 
 
 def rsi(expr: IntoExpr, length: int = 14) -> pl.Expr:
-
     delta = _parse_expr(expr).diff()
     gain = delta.clip(upper_bound=0)
     loss = (-delta).clip(upper_bound=0)
